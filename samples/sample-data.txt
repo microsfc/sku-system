@@ -1,0 +1,27 @@
+範例 Excel 內容 — 您可以將下列資料貼到 Excel，存成 .xlsx 進行匯入測試
+Sample data — paste into Excel, save as .xlsx, then import.
+
+----- Sheet: PA -----
+料號                說明
+PA-440              Palo Alto Networks PA-440 Hardware Firewall
+PA-440-LIC-TP       PA-440 Threat Prevention Subscription, 1 Year
+PA-440-LIC-URL      PA-440 PAN-DB URL Filtering Subscription, 1 Year
+PA-440-SUP-PREMIUM  PA-440 Premium Support, 1 Year
+PA-1410             PA-1410 Hardware Firewall
+PA-1410-RNW-TP      PA-1410 Threat Prevention Renewal, 1 Year
+
+----- Sheet: Forti -----
+料號                  說明
+FG-100F               FortiGate-100F Hardware (10 x GE RJ45 ports)
+FC-10-0100F-928-02-12 FortiGuard UTP, 1 Year (License)
+FC-10-0100F-247-02-12 FortiCare Premium Support, 1 Year
+FG-200F               FortiGate-200F Hardware
+FC-10-0200F-950-02-36 Enterprise Bundle, 3 Year License
+
+----- Sheet: CISCO -----
+料號                  說明
+C9300-24T-A           Cisco Catalyst 9300 24-port Switch
+C9300-DNA-A-24-3Y     Cisco DNA Advantage License, 3 Year
+SNTC-8X5XNBD-C9300    SmartNet 8x5xNBD for C9300, 1 Year (Support)
+ASR1001-X             ASR 1001-X Router
+SL-ASR1001X-AIS       AIS Software License for ASR1001-X

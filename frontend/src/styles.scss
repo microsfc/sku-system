@@ -1,0 +1,51 @@
+// =====================================================
+//  Angular Material 17 主題 (M2 API)
+//  改用 SCSS 主題定義，避開 prebuilt-themes 的 export 解析問題
+// =====================================================
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$primary: mat.define-palette(mat.$indigo-palette, 700);
+$accent:  mat.define-palette(mat.$blue-palette, A200, A100, A400);
+$warn:    mat.define-palette(mat.$red-palette);
+
+$it-theme: mat.define-light-theme((
+  color: (primary: $primary, accent: $accent, warn: $warn),
+  typography: mat.define-typography-config(
+    $font-family: ('Noto Sans TC', 'Roboto', 'Helvetica Neue', sans-serif),
+  ),
+  density: 0,
+));
+
+@include mat.all-component-themes($it-theme);
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Noto Sans TC', 'Roboto', 'Helvetica Neue', sans-serif;
+  background: #f5f7fb;
+  color: #202124;
+}
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #c5cad1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #9aa0a6; }
+
+.spacer { flex: 1 1 auto; }
+
+.cat-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .3px;
+}
+.cat-chip.product { background: rgba(63,81,181,.12); color: #1a237e; }
+.cat-chip.license { background: rgba(244,67,54,.12); color: #b71c1c; }
+
+.mat-mdc-table { background: transparent !important; }
+.mat-mdc-row:hover { background: rgba(63,81,181,.04); }

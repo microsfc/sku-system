@@ -1,0 +1,186 @@
+<div class="app-shell">
+  <!-- ===== Top App Bar ===== -->
+  <mat-toolbar class="app-bar">
+    <div class="brand">
+      <mat-icon class="logo">inventory_2</mat-icon>
+      <div>
+        <div class="title">{{ i18n.t('appTitle') }}</div>
+        <div class="subtitle">{{ i18n.t('subtitle') }}</div>
+      </div>
+    </div>
+
+    <span class="spacer"></span>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput [placeholder]="i18n.t('search')"
+             [ngModel]="searchTerm()"
+             (ngModelChange)="onSearch($event)" />
+    </mat-form-field>
+
+    <button mat-stroked-button color="accent" (click)="openImport()" [matTooltip]="i18n.t('importExcel')">
+      <mat-icon>upload_file</mat-icon>
+      <span class="hide-sm">{{ i18n.t('importExcel') }}</span>
+    </button>
+
+    <button mat-stroked-button color="primary" (click)="openAddVendor()">
+      <mat-icon>add_business</mat-icon>
+      <span class="hide-sm">{{ i18n.t('addVendor') }}</span>
+    </button>
+
+    <button mat-icon-button (click)="toggleLang()" [matTooltip]="'Language'">
+      <span class="lang-pill">{{ i18n.t('langSwitch') }}</span>
+    </button>
+  </mat-toolbar>
+
+  <!-- ===== KPI Cards ===== -->
+  <section class="kpi">
+    <div class="kpi-card kpi-total">
+      <div class="kpi-num">{{ stats().total | number }}</div>
+      <div class="kpi-label">
+        <mat-icon>inventory</mat-icon> {{ i18n.t('total') }}
+      </div>
+    </div>
+    <div class="kpi-card kpi-product">
+      <div class="kpi-num">{{ stats().product | number }}</div>
+      <div class="kpi-label">
+        <mat-icon>memory</mat-icon> {{ i18n.t('product') }}
+      </div>
+    </div>
+    <div class="kpi-card kpi-license">
+      <div class="kpi-num">{{ stats().license | number }}</div>
+      <div class="kpi-label">
+        <mat-icon>vpn_key</mat-icon> {{ i18n.t('license') }}
+      </div>
+    </div>
+    <div class="kpi-card kpi-vendor">
+      <div class="kpi-num">{{ stats().vendors | number }}</div>
+      <div class="kpi-label">
+        <mat-icon>storefront</mat-icon> {{ i18n.t('vendors') }}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Vendor Tabs ===== -->
+  <mat-tab-group class="vendor-tabs"
+                 [selectedIndex]="selectedVendorIdx()"
+                 (selectedIndexChange)="onTabChange($event)"
+                 mat-stretch-tabs="false"
+                 mat-align-tabs="start">
+
+    <!-- All vendors tab -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon style="margin-right:6px;">apps</mat-icon>
+        {{ i18n.t('all') }}
+        <span class="tab-badge">{{ stats().total }}</span>
+      </ng-template>
+    </mat-tab>
+
+    @for (v of vendors(); track v.id) {
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="dot" [style.background]="v.color"></span>
+          {{ i18n.lang() === 'zh' ? v.name : (v.name_en || v.name) }}
+          <span class="tab-badge">{{ v.total ?? 0 }}</span>
+        </ng-template>
+      </mat-tab>
+    }
+  </mat-tab-group>
+
+  <!-- ===== Filter Row ===== -->
+  <section class="filter-row">
+    <div class="cat-buttons">
+      <button mat-button [class.active]="category()==='all'" (click)="onCategoryChange('all')">
+        <mat-icon>filter_list</mat-icon> {{ i18n.t('all') }}
+      </button>
+      <button mat-button [class.active]="category()==='product'" (click)="onCategoryChange('product')">
+        <mat-icon>memory</mat-icon> {{ i18n.t('product') }}
+      </button>
+      <button mat-button [class.active]="category()==='license'" (click)="onCategoryChange('license')">
+        <mat-icon>vpn_key</mat-icon> {{ i18n.t('license') }}
+      </button>
+    </div>
+
+    <span class="spacer"></span>
+
+    @if (currentVendor(); as v) {
+      <button mat-icon-button [matMenuTriggerFor]="vMenu" matTooltip="Vendor menu">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #vMenu="matMenu">
+        <button mat-menu-item (click)="deleteVendor(v)">
+          <mat-icon color="warn">delete</mat-icon>
+          <span>{{ i18n.t('delete') }} — {{ v.code }}</span>
+        </button>
+      </mat-menu>
+    }
+
+    <button mat-flat-button color="primary" (click)="openAddPart()">
+      <mat-icon>add</mat-icon> {{ i18n.t('newPart') }}
+    </button>
+  </section>
+
+  <!-- ===== Parts Table ===== -->
+  <section class="table-card">
+    @if (parts().length === 0) {
+      <div class="empty">
+        <mat-icon>inbox</mat-icon>
+        <div>{{ i18n.t('noData') }}</div>
+      </div>
+    } @else {
+      <table mat-table [dataSource]="parts()" class="parts-table">
+
+        <ng-container matColumnDef="sku">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('sku') }}</th>
+          <td mat-cell *matCellDef="let r"><span class="mono">{{ r.sku }}</span></td>
+        </ng-container>
+
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('description') }}</th>
+          <td mat-cell *matCellDef="let r" class="desc">{{ r.description }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="category">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('category') }}</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="cat-chip" [class.product]="r.category==='product'" [class.license]="r.category==='license'">
+              <mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle;">
+                {{ r.category==='product' ? 'memory' : 'vpn_key' }}
+              </mat-icon>
+              {{ r.category === 'product' ? i18n.t('product') : i18n.t('license') }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="vendor">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('vendors') }}</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="dot" [style.background]="r.vendor_color"></span>
+            {{ r.vendor_code }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="updated">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('updated') }}</th>
+          <td mat-cell *matCellDef="let r" class="muted">{{ r.updated_at | date: 'yyyy-MM-dd HH:mm' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef style="width:100px;">{{ i18n.t('actions') }}</th>
+          <td mat-cell *matCellDef="let r">
+            <button mat-icon-button (click)="editPart(r)" [matTooltip]="i18n.t('edit')">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deletePart(r)" [matTooltip]="i18n.t('delete')">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="cols; sticky: true"></tr>
+        <tr mat-row *matRowDef="let row; columns: cols;"></tr>
+      </table>
+    }
+  </section>
+</div>

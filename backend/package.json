@@ -1,0 +1,19 @@
+{
+  "name": "it-parts-system-backend",
+  "version": "1.0.0",
+  "description": "IT 代理商料號管理系統 後端 API (Node.js + Express + node:sqlite)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "multer": "^2.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
