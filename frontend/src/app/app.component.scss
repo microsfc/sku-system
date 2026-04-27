@@ -87,6 +87,32 @@
   }
 }
 
+/* ===== Family chip bar ===== */
+.family-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  margin: 0 24px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f1f3f4;
+
+  .family-label {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: #5f6368; font-size: 12px; font-weight: 600; letter-spacing: .4px;
+    mat-icon { font-size: 16px; width:16px; height:16px; }
+  }
+  .chip-count {
+    margin-left: 4px;
+    font-size: 11px;
+    color: #1a237e;
+    background: rgba(63,81,181,.14);
+    padding: 0 6px;
+    border-radius: 8px;
+  }
+  ::ng-deep .mat-mdc-chip-listbox { flex-wrap: wrap; }
+}
+
 /* ===== Filter row ===== */
 .filter-row {
   display:flex; align-items:center; gap:8px;
@@ -94,6 +120,7 @@
   margin: 0 24px;
   padding: 10px 16px;
   border-bottom: 1px solid #e8eaed;
+  flex-wrap: wrap;
 
   .spacer { flex: 1 1 auto; }
   .cat-buttons button {
@@ -106,6 +133,24 @@
     background: rgba(63,81,181,.12);
     color: #1a237e;
     font-weight: 600;
+  }
+  .group-toggle {
+    margin-left: 12px; font-size: 13px; color:#5f6368;
+  }
+  .sel-info {
+    display:inline-flex; align-items:center; gap:4px;
+    color:#1a237e; font-weight:600; font-size:13px;
+    background: rgba(63,81,181,.12); padding: 4px 10px; border-radius: 14px;
+    mat-icon { font-size:16px; width:16px; height:16px; color: #2e7d32; }
+  }
+  .badge-inline {
+    display:inline-block;
+    margin-left: 4px;
+    background: #ff5722;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    padding: 0 6px;
   }
 }
 
@@ -130,6 +175,55 @@
     padding: 80px 0;
     color: #9aa0a6;
     mat-icon { font-size: 56px; width:56px; height:56px; margin-bottom: 12px; }
+  }
+}
+
+/* ===== Family chip in cell + group banner ===== */
+.family-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(63,81,181,.12);
+  color: #1a237e;
+  font-family: 'Roboto Mono', 'Consolas', monospace;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  &.locked {
+    background: rgba(255,193,7,.18);
+    color: #6d4c00;
+    border: 1px solid rgba(255,193,7,.5);
+  }
+  .lock-ic { font-size: 12px; width: 12px; height: 12px; }
+}
+
+.cat-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  &.product { background: rgba(26,35,126,.10); color: #1a237e; }
+  &.license { background: rgba(183,28,28,.10); color: #b71c1c; }
+}
+
+.family-group {
+  margin: 8px 0 4px;
+  border-top: 1px solid #f1f3f4;
+}
+.family-group-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px 6px;
+  background: #fafafa;
+  font-weight: 600; color: #1a237e;
+  position: sticky; top: 0; z-index: 2;
+  mat-icon { color: #3f51b5; }
+  .family-group-title { font-family: 'Roboto Mono', 'Consolas', monospace; }
+  .family-group-count {
+    margin-left: auto;
+    background: rgba(63,81,181,.16);
+    color: #1a237e;
+    padding: 1px 10px; border-radius: 10px;
+    font-size: 12px;
   }
 }
 

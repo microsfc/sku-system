@@ -23,9 +23,37 @@ export interface Part {
   sku: string;
   description: string;
   category: 'product' | 'license';
+  family?: string | null;
+  family_locked?: 0 | 1 | boolean;
   source_file?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface FamilyStat {
+  family: string;
+  count: number;
+  product: number;
+  license: number;
+}
+
+export interface BackfillResult {
+  ok: boolean;
+  scope?: 'all' | 'vendor';
+  vendor_id?: number | null;
+  scanned: number;
+  updated: number;
+  unchanged: number;
+  cleared: number;
+  families: { family: string; count: number }[];
+}
+
+export interface ImportPart {
+  sku: string | null;
+  description: string;
+  category: 'product' | 'license';
+  source_file?: string;
+  sheet?: string;
 }
 
 export interface ImportPreview {
@@ -34,7 +62,46 @@ export interface ImportPreview {
   total: number;
   product: number;
   license: number;
-  parts: Array<{ sku: string; description: string; category: 'product' | 'license'; source_file: string; sheet: string }>;
+  parts: ImportPart[];
+}
+
+// 自動辨識廠商的分組預覽
+export interface ImportAutoGroup {
+  vendor_code: string;       // 'HPE' | 'CISCO' | ... | 'UNKNOWN'
+  vendor_id: number | null;  // 已存在的 vendor.id, 否則 null
+  vendor_name: string;
+  vendor_name_en?: string;
+  vendor_color: string;
+  exists: boolean;           // DB 內已有此 vendor
+  will_create: boolean;      // 將被自動建立
+  count: number;
+  product: number;
+  license: number;
+  parts: ImportPart[];
+}
+
+export interface ImportAutoPreview {
+  file: string;
+  sheets: { name: string; count: number }[];
+  total: number;
+  product: number;
+  license: number;
+  groups: ImportAutoGroup[];
+}
+
+export interface ImportAutoCommitResult {
+  ok: boolean;
+  total_inserted: number;
+  results: Array<{
+    vendor_code: string;
+    vendor_id?: number;
+    vendor_name?: string;
+    created?: boolean;
+    inserted: number;
+    skipped?: number;
+    reason?: string;
+    error?: string;
+  }>;
 }
 
 export interface Stats {
