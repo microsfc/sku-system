@@ -227,6 +227,24 @@
   }
 }
 
+/* ===== Row-menu (移至廠商) ===== */
+::ng-deep .mat-mdc-menu-panel {
+  .menu-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 16px 4px;
+    color: #5f6368; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    border-bottom: 1px solid #f1f3f4;
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  }
+  .vendor-dot {
+    display: inline-block;
+    width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+}
+
 .hide-sm { margin-left: 6px; }
 @media (max-width: 900px) {
   .hide-sm { display:none; }

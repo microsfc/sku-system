@@ -253,14 +253,16 @@ export class AppComponent implements OnInit {
     });
   }
 
-  // ---- 一鍵分類 (依當前 tab 範圍) ----
+  // ---- 一鍵分類 (僅針對當前選定的廠商; 不再支援全資料庫批次) ----
   classifyAllInDb() {
     const v = this.currentVendor();
-    const scopeLabel = v
-      ? `${this.i18n.t('classifyVendor')} — ${v.code}`
-      : this.i18n.t('classifyAll');
+    if (!v) {
+      this.snack.open(this.i18n.t('classifyNeedsVendor'), 'OK', { duration: 2500 });
+      return;
+    }
+    const scopeLabel = `${this.i18n.t('classifyVendor')} — ${v.code}`;
     if (!confirm(`${scopeLabel} ?\n(${this.i18n.t('familyLocked')} 之資料不影響)`)) return;
-    this.api.backfillFamilies({ vendor: v?.id }).subscribe((r) => {
+    this.api.backfillFamilies({ vendor: v.id }).subscribe((r) => {
       this.snack.open(
         `${this.i18n.t('classifyDone')} — ${r.updated}/${r.scanned} ${this.i18n.t('rows')}`,
         'OK', { duration: 2400 }
@@ -268,6 +270,26 @@ export class AppComponent implements OnInit {
       this.loadFamilies();
       this.loadStats();
       this.refresh();
+    });
+  }
+
+  // 換廠商 (row 行動選單用): 直接 PATCH vendor_id, 衝突時錯誤訊息以 snack 顯示
+  moveToVendor(p: Part, targetVendorId: number) {
+    if (p.vendor_id === targetVendorId) return;
+    const target = this.vendors().find(v => v.id === targetVendorId);
+    if (!target) return;
+    if (!confirm(`將 ${p.sku || p.description} 從 ${p.vendor_code || ''} 改為 ${target.code} ?`)) return;
+    this.api.updatePart(p.id, { vendor_id: targetVendorId }).subscribe({
+      next: () => {
+        this.snack.open(`${this.i18n.t('moved')} → ${target.code}`, 'OK', { duration: 2200 });
+        this.loadVendors();
+        this.loadStats();
+        this.loadFamilies();
+        this.refresh();
+      },
+      error: (e) => {
+        this.snack.open(e?.error?.error || 'Move failed', 'OK', { duration: 3500 });
+      }
     });
   }
 

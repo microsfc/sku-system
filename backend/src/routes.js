@@ -519,53 +519,90 @@ function uniqueSheetName(wb, base) {
 }
 
 // 把同一廠商的 rows 寫成一個 sheet:
-//   - 依 family → sku 排序 (相同 family 的料號集中)
-//   - 在不同 family 之間插入空白分隔列 (視覺上更清晰)
+//   - 先依 family 分組 (未分類擺最後)
+//   - 每個 family 區塊上方有「▶ FAMILY — N items」橫幅 (跨 7 欄合併)
+//   - 同 family 內: product 在前 / license 在後, 各自再依 SKU 排序
+//   - family 區塊間插入空白分隔列
 //   - 欄位順序: Family / SKU / Description / Category / Family Locked / Source / Updated
 function appendVendorSheet(wb, vendorCode, vendorName, rows) {
-  // 依 family 排序: 有 family 在前 (依字母), 未分類擺後
-  const sorted = [...rows].sort((a, b) => {
-    const fa = (a.family || '').toUpperCase();
-    const fb = (b.family || '').toUpperCase();
-    if (!fa && fb) return 1;
-    if (fa && !fb) return -1;
-    if (fa !== fb) return fa.localeCompare(fb);
-    return String(a.sku || '').localeCompare(String(b.sku || ''));
+  // 1. 分組
+  const groupMap = new Map();
+  for (const r of rows) {
+    const key = r.family || '';
+    if (!groupMap.has(key)) groupMap.set(key, []);
+    groupMap.get(key).push(r);
+  }
+
+  // 2. group 排序: 有 family 的依字母, 「未分類」擺最後
+  const groups = [...groupMap.entries()].sort((a, b) => {
+    if (a[0] === '' && b[0] !== '') return 1;
+    if (a[0] !== '' && b[0] === '') return -1;
+    return a[0].localeCompare(b[0]);
   });
 
-  // 表頭
-  const aoa = [
-    [`${vendorCode} — ${vendorName || ''} (${rows.length})`],
-    [],
-    ['Family', 'SKU', 'Description', 'Category', 'Family Locked', 'Source', 'Updated']
-  ];
-  const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+  // 3. 同一 group 內: product → license, 各自 SKU asc (空 SKU 最後)
+  for (const [, items] of groups) {
+    items.sort((a, b) => {
+      if (a.category !== b.category) return a.category === 'product' ? -1 : 1;
+      const sa = String(a.sku || '');
+      const sb = String(b.sku || '');
+      if (!sa && sb) return 1;
+      if (sa && !sb) return -1;
+      return sa.localeCompare(sb);
+    });
+  }
 
-  let lastFamily = '__INIT__';
-  for (const r of sorted) {
-    const fam = r.family || '';
-    if (lastFamily !== '__INIT__' && fam !== lastFamily) {
-      aoa.push([]);   // family 換組時插入空白列
+  // 4. 構建 AoA + merges
+  const NUM_COLS = 7;
+  const aoa = [];
+  const merges = [];
+
+  // 4-1. 廠商標題橫幅 (列 0)
+  aoa.push([`═══ ${vendorCode} — ${vendorName || ''}  ·  ${rows.length} items ═══`]);
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NUM_COLS - 1 } });
+  // 4-2. 空白分隔
+  aoa.push([]);
+  // 4-3. 欄位標題 (列 2)
+  aoa.push(['Family', 'SKU', 'Description', 'Category', 'Family Locked', 'Source', 'Updated']);
+
+  // 4-4. 每組: 空白列 + family banner + 資料列
+  let firstGroup = true;
+  for (const [family, items] of groups) {
+    if (!firstGroup) {
+      aoa.push([]);  // 不同 family 之間的空白分隔列
     }
+    firstGroup = false;
+
+    const famLabel = family || '(未分類)';
+    const productCount = items.filter((r) => r.category === 'product').length;
+    const licenseCount = items.length - productCount;
+    const bannerRow = aoa.length;
     aoa.push([
-      fam || '(未分類)',
-      r.sku || '',
-      r.description || '',
-      r.category || '',
-      r.family_locked ? 'Y' : '',
-      r.source_file || '',
-      r.updated_at || ''
+      `▶ ${famLabel}   ·   ${items.length} items   ` +
+      `(P:${productCount} / L:${licenseCount})`
     ]);
-    lastFamily = fam;
+    merges.push({ s: { r: bannerRow, c: 0 }, e: { r: bannerRow, c: NUM_COLS - 1 } });
+
+    for (const r of items) {
+      aoa.push([
+        family || '(未分類)',
+        r.sku || '',
+        r.description || '',
+        r.category || '',
+        r.family_locked ? 'Y' : '',
+        r.source_file || '',
+        r.updated_at || ''
+      ]);
+    }
   }
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!merges'] = merges;
-  // 凍結首三列 (header banner + 欄名)
+  // 凍結列 1-3 (廠商橫幅 + 空行 + 欄名)
   ws['!freeze'] = { xSplit: 0, ySplit: 3 };
-  // 自動欄寬
-  const widths = [12, 26, 80, 10, 14, 28, 20];
-  ws['!cols'] = widths.map(w => ({ wch: w }));
+  // 欄寬
+  const widths = [16, 28, 80, 10, 14, 28, 20];
+  ws['!cols'] = widths.map((w) => ({ wch: w }));
 
   const sheetName = uniqueSheetName(wb, vendorCode || vendorName || 'Sheet');
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
