@@ -19,6 +19,7 @@ const DICT: Record<string, { zh: string; en: string }> = {
   total:           { zh: '料號總數',                en: 'Total' },
   product:         { zh: '產品料號',                en: 'Product' },
   license:         { zh: '授權料號',                en: 'License' },
+  warranty:        { zh: '產品保固',                en: 'Warranty' },
   category:        { zh: '分類',                    en: 'Category' },
   sku:             { zh: '料號',                    en: 'SKU' },
   description:     { zh: '說明',                    en: 'Description' },
@@ -43,7 +44,44 @@ const DICT: Record<string, { zh: string; en: string }> = {
   imported:        { zh: '已匯入',                  en: 'imported' },
   successImport:   { zh: '匯入成功',                en: 'Import successful' },
   noData:          { zh: '查無資料',                en: 'No data' },
-  langSwitch:      { zh: 'EN',                      en: '中' }
+  langSwitch:      { zh: 'EN',                      en: '中' },
+
+  // 匯入模式
+  importMode:      { zh: '匯入模式',                en: 'Import Mode' },
+  modeAuto:        { zh: '自動辨識廠商',            en: 'Auto-detect Vendor' },
+  modeManual:      { zh: '手動指定廠商',            en: 'Manual Vendor' },
+  detected:        { zh: '已偵測',                  en: 'Detected' },
+  willCreateVendor:{ zh: '將自動建立廠商',          en: 'will be created' },
+  existingVendor:  { zh: '已存在廠商',              en: 'existing' },
+  unknownVendor:   { zh: '未識別',                  en: 'Unknown' },
+  pickVendor:      { zh: '指定廠商',                en: 'Assign Vendor' },
+  skipGroup:       { zh: '略過',                    en: 'Skip' },
+  importAll:       { zh: '全部匯入',                en: 'Import All' },
+
+  // 產品歸類 / 匯出 / 多選
+  family:          { zh: '產品線',                  en: 'Family' },
+  familyAuto:      { zh: '自動',                    en: 'Auto' },
+  familyLocked:    { zh: '已鎖定',                  en: 'Locked' },
+  unclassified:    { zh: '未分類',                  en: 'Unclassified' },
+  groupByFamily:   { zh: '依產品線分組',            en: 'Group by Family' },
+  flatView:        { zh: '平面檢視',                en: 'Flat View' },
+  classifyAll:     { zh: '一鍵分類全部',            en: 'Classify All' },
+  classifyVendor:  { zh: '分類本廠商',              en: 'Classify Vendor' },
+  classifyNeedsVendor: { zh: '請先切換到指定的廠商分頁', en: 'Switch to a vendor tab first' },
+  classifyDone:    { zh: '分類完成',                en: 'Classification done' },
+  moveToVendor:    { zh: '移至廠商',                en: 'Move to Vendor' },
+  moved:           { zh: '已移動',                  en: 'Moved' },
+  exportSelected:  { zh: '匯出選取',                en: 'Export Selected' },
+  exportAll:       { zh: '匯出全部',                en: 'Export Filtered' },
+  selectAll:       { zh: '全選',                    en: 'Select All' },
+  clearSelection:  { zh: '清除選取',                en: 'Clear Selection' },
+  selected:        { zh: '已選',                    en: 'selected' },
+  batchDelete:     { zh: '批次刪除',                en: 'Batch Delete' },
+  confirmBatchDel: { zh: '將刪除選取的料號, 是否繼續?', en: 'Delete the selected items?' },
+
+  // 重複 SKU 提示
+  duplicateSku:    { zh: '此廠商已有相同料號',          en: 'This vendor already has this SKU' },
+  editExisting:    { zh: '編輯既有料號',                en: 'Edit existing' }
 };
 
 @Injectable({ providedIn: 'root' })
