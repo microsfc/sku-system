@@ -51,14 +51,31 @@ import { Part, Vendor } from '../models';
       <mat-form-field appearance="outline">
         <mat-label>{{ i18n.t('category') }}</mat-label>
         <mat-select [(ngModel)]="form.category">
-          <mat-option value="product">{{ i18n.t('product') }}</mat-option>
-          <mat-option value="license">{{ i18n.t('license') }}</mat-option>
+          <mat-option value="product">
+            <mat-icon style="vertical-align:middle;font-size:16px;width:16px;height:16px;color:#2e7d32;">memory</mat-icon>
+            {{ i18n.t('product') }}
+          </mat-option>
+          <mat-option value="warranty">
+            <mat-icon style="vertical-align:middle;font-size:16px;width:16px;height:16px;color:#ed6c02;">verified_user</mat-icon>
+            {{ i18n.t('warranty') }}
+          </mat-option>
+          <mat-option value="license">
+            <mat-icon style="vertical-align:middle;font-size:16px;width:16px;height:16px;color:#1565c0;">vpn_key</mat-icon>
+            {{ i18n.t('license') }}
+          </mat-option>
         </mat-select>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full">
         <mat-label>{{ i18n.t('sku') }}</mat-label>
-        <input matInput [(ngModel)]="form.sku" />
+        <input matInput [(ngModel)]="form.sku" (ngModelChange)="onSkuChange()" />
+        @if (dupExisting) {
+          <mat-hint class="dup-hint">
+            <mat-icon>error_outline</mat-icon>
+            {{ i18n.t('duplicateSku') }} ·
+            <a class="dup-link" (click)="openExisting()">{{ i18n.t('editExisting') }}</a>
+          </mat-hint>
+        }
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full">
@@ -95,6 +112,9 @@ import { Part, Vendor } from '../models';
     .dot-mini { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align: middle; }
     .warn-hint { display:inline-flex; align-items:center; gap:4px; color: #ed6c02; font-size: 11px; }
     .warn-hint mat-icon { font-size: 14px; width:14px; height:14px; }
+    .dup-hint { display:inline-flex; align-items:center; gap:4px; color: #b71c1c; font-size: 11px; }
+    .dup-hint mat-icon { font-size: 14px; width:14px; height:14px; }
+    .dup-link { color: #1565c0; cursor: pointer; text-decoration: underline; margin-left: 4px; }
   `]
 })
 export class PartDialogComponent {
@@ -109,6 +129,8 @@ export class PartDialogComponent {
   // 用來判斷 family 是否被使用者修改過 (修改即視為手動設定 → 鎖定)
   private originalFamily: string = '';
   originalVendorLabel: string = '';
+  // 重複 SKU 提示: 後端 409 回傳的 existing 物件
+  dupExisting: { id: number; sku: string; description: string; vendor_code: string } | null = null;
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: { vendors: Vendor[]; part?: Part; vendorId?: number },
               private snack: MatSnackBar) {
@@ -129,6 +151,16 @@ export class PartDialogComponent {
     if (!id) return '';
     const v = this.data.vendors.find(x => x.id === id);
     return v ? `${v.name} (${v.code})` : String(id);
+  }
+
+  // 使用者修改 SKU 後清除重複提示
+  onSkuChange() { this.dupExisting = null; }
+
+  // 點擊 "編輯既有料號": 關閉本對話框並回傳指令給父層開啟既有 part
+  openExisting() {
+    if (this.dupExisting) {
+      this.ref.close({ ok: false, openExistingId: this.dupExisting.id });
+    }
   }
 
   save() {
@@ -162,6 +194,17 @@ export class PartDialogComponent {
       this.api.createPart(payload).subscribe({
         next: () => this.ref.close({ ok: true }),
         error: (e) => {
+          // 409 重複 SKU: 顯示 inline 提示 + 提供「編輯既有料號」連結, snackbar 帶完整訊息
+          if (e?.status === 409 && e?.error?.code === 'DUPLICATE_SKU' && e?.error?.existing) {
+            this.dupExisting = e.error.existing;
+            const ex = e.error.existing;
+            this.snack.open(
+              `${ex.vendor_code} 已有 ${ex.sku} — ${ex.description?.slice(0, 60) || ''}`,
+              this.i18n.t('editExisting'),
+              { duration: 6000 }
+            ).onAction().subscribe(() => this.openExisting());
+            return;
+          }
           this.snack.open(e?.error?.error || 'Create failed', 'OK', { duration: 3500 });
         }
       });

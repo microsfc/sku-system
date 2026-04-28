@@ -30,7 +30,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { debounceTime, Subject } from 'rxjs';
 import { ApiService } from './services/api.service';
 import { I18nService } from './services/i18n.service';
-import { FamilyStat, Part, Stats, Vendor } from './models';
+import { Category, FamilyStat, Part, Stats, Vendor } from './models';
 import { ImportDialogComponent } from './dialogs/import-dialog.component';
 import { VendorDialogComponent } from './dialogs/vendor-dialog.component';
 import { PartDialogComponent } from './dialogs/part-dialog.component';
@@ -56,12 +56,12 @@ export class AppComponent implements OnInit {
 
   vendors = signal<Vendor[]>([]);
   parts = signal<Part[]>([]);
-  stats = signal<Stats>({ total: 0, product: 0, license: 0, vendors: 0 });
+  stats = signal<Stats>({ total: 0, product: 0, warranty: 0, license: 0, vendors: 0 });
   families = signal<FamilyStat[]>([]);
 
   selectedVendorIdx = signal<number>(0);    // 0 = ALL, 1+ = vendor index
   searchTerm = signal<string>('');
-  category = signal<'all' | 'product' | 'license'>('all');
+  category = signal<'all' | Category>('all');
   familyFilter = signal<string>('');         // '' = 不過濾 family
   groupByFamily = signal<boolean>(false);
 
@@ -160,7 +160,7 @@ export class AppComponent implements OnInit {
     this.loadFamilies();
   }
   onSearch(v: string) { this.searchSubject.next(v); }
-  onCategoryChange(c: 'all'|'product'|'license') { this.category.set(c); this.refresh(); }
+  onCategoryChange(c: 'all' | Category) { this.category.set(c); this.refresh(); }
   onFamilyFilter(f: string) { this.familyFilter.set(f); this.refresh(); }
   toggleGroupByFamily() { this.groupByFamily.set(!this.groupByFamily()); }
 
@@ -191,6 +191,8 @@ export class AppComponent implements OnInit {
       data: { vendors: this.vendors(), vendorId: v?.id }
     }).afterClosed().subscribe((r) => {
       if (r?.ok) { this.loadStats(); this.loadFamilies(); this.refresh(); }
+      // 重複 SKU → 開既有料號的編輯對話框
+      else if (r?.openExistingId) { this.editPartById(r.openExistingId); }
     });
   }
 
@@ -199,6 +201,19 @@ export class AppComponent implements OnInit {
       data: { vendors: this.vendors(), part: p }
     }).afterClosed().subscribe((r) => {
       if (r?.ok) { this.loadStats(); this.loadFamilies(); this.refresh(); }
+      else if (r?.openExistingId) { this.editPartById(r.openExistingId); }
+    });
+  }
+
+  // 透過 id 查找目前清單中的 part 並開啟編輯; 若不在清單則先 fetch 全部後再找
+  private editPartById(id: number) {
+    const found = this.parts().find(p => p.id === id);
+    if (found) { this.editPart(found); return; }
+    // fallback: 重新拉一次完整清單再找 (例如目前篩選把該料號濾掉了)
+    this.api.getParts({ limit: 5000 }).subscribe((all) => {
+      const p = all.find(x => x.id === id);
+      if (p) this.editPart(p);
+      else this.snack.open('找不到該料號', 'OK', { duration: 2000 });
     });
   }
 

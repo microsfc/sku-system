@@ -2,20 +2,27 @@
 //  料號分類器 — 依命名規則自動判斷「產品」或「授權」料號
 // ============================================================
 
-// 出現在 SKU 或 描述任一處 即視為 license 的關鍵字
+// 出現在 SKU 或 描述任一處 即視為 license 的關鍵字 (純軟體授權 / 訂閱)
 const LICENSE_KEYWORDS = [
   'LIC', 'LICENSE', 'LICENCE',
   'SUB', 'SUBSCRIPTION', 'SUBS',
   'RNW', 'RENEW', 'RENEWAL',
-  'SUPPORT', 'SUP', 'SUPP',
-  'MAINT', 'MAINTENANCE',
-  'WARRANTY', 'WTY',
-  'SVC', 'SERVICE',
-  'TAC', 'PSP',
-  'PREMIUM-PARTNER', 'FORTICARE', 'PANDB', 'THREAT-PREV',
+  'PSP',
+  'PREMIUM-PARTNER', 'FORTIGUARD', 'PANDB', 'THREAT-PREV',
   'PREVENTION', 'FILTERING', 'WILDFIRE',
-  'SMARTNET', 'SNTC', 'TERM',
-  'BUNDLE', 'CARE'
+  'TERM', 'BUNDLE'
+];
+
+// 出現即視為 warranty (產品保固 / 維護 / 支援) 的關鍵字
+//   優先級高於 license, 因為 e.g. "FORTICARE" / "SMARTNET" / "PROACTIVE-CARE" 都是硬體支援合約
+const WARRANTY_KEYWORDS = [
+  'WARRANTY', 'WTY', 'POSTWTY', 'POSTWARRANTY',
+  'MAINT', 'MAINTENANCE',
+  'SUPPORT', 'SUP', 'SUPP',
+  'SMARTNET', 'SNTC', 'TAC',
+  'CARE', 'CAREPACK', 'CAREPAK',
+  'FORTICARE',
+  'SVC', 'SERVICE'
 ];
 
 // SKU 開頭即視為 license 的前綴
@@ -23,8 +30,14 @@ const LICENSE_KEYWORDS = [
 //   SL-  Cisco Software License
 //   L-   一般 License 簡寫
 //   PAN-SVC-  Palo Alto Service
-//   CON-     Cisco Service Contract (SmartNet)
-const SKU_LICENSE_PREFIXES = ['FC-', 'SL-', 'L-', 'PAN-SVC-', 'CON-'];
+const SKU_LICENSE_PREFIXES = ['SL-', 'L-'];
+
+// SKU 開頭即視為 warranty (硬體保固/支援) 的前綴
+//   CON-      Cisco Service Contract (SmartNet)
+//   PAN-SVC-  Palo Alto Premium Support
+//   FC-       Fortinet FortiCare 支援合約
+//   H-, HA-, HU-  HPE Care Pack 常見起始
+const SKU_WARRANTY_PREFIXES = ['CON-', 'PAN-SVC-', 'FC-'];
 
 // 描述中含「N year(s)」/「N month(s)」/「N-year」之 subscription pattern
 const SUBSCRIPTION_TIME_RE = /(\b\d+\s*-?\s*(?:YEAR|MONTH|MO|YR)S?\b)|((?:^|\W)\d+Y\b)/i;
@@ -131,18 +144,30 @@ function classify(sku, description) {
   const descU = String(description || '').toUpperCase();
   const text = skuU + ' ' + descU;
 
-  // 1. SKU 開頭前綴
+  // 1a. SKU 前綴 → warranty (硬體保固合約)
+  for (const prefix of SKU_WARRANTY_PREFIXES) {
+    if (skuU.startsWith(prefix)) return 'warranty';
+  }
+
+  // 1b. SKU 前綴 → license (軟體授權)
   for (const prefix of SKU_LICENSE_PREFIXES) {
     if (skuU.startsWith(prefix)) return 'license';
   }
 
-  // 2. 授權關鍵字 (SKU 或 描述)
+  // 2a. 保固關鍵字 (優先級高於 license)
+  for (const kw of WARRANTY_KEYWORDS) {
+    const re = new RegExp('(^|[^A-Z0-9])' + kw + '([^A-Z0-9]|$)');
+    if (re.test(text)) return 'warranty';
+  }
+
+  // 2b. 授權關鍵字
   for (const kw of LICENSE_KEYWORDS) {
     const re = new RegExp('(^|[^A-Z0-9])' + kw + '([^A-Z0-9]|$)');
     if (re.test(text)) return 'license';
   }
 
   // 3. 描述含期間 + term/subscription pattern (例: "1 year term", "12 months term")
+  //    若同時提到 SUPPORT/CARE 則視為 warranty (上面已先處理)
   if (SUBSCRIPTION_TIME_RE.test(descU) && TERM_RE.test(descU)) {
     return 'license';
   }
@@ -150,4 +175,10 @@ function classify(sku, description) {
   return 'product';
 }
 
-module.exports = { classify, extractFamily, findModelToken, LICENSE_KEYWORDS };
+module.exports = {
+  classify,
+  extractFamily,
+  findModelToken,
+  LICENSE_KEYWORDS,
+  WARRANTY_KEYWORDS
+};

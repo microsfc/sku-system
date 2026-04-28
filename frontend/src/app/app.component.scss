@@ -58,9 +58,10 @@
     .kpi-label { display:flex; align-items:center; gap:6px; margin-top:6px; color:#5f6368; font-size:13px; }
     .kpi-label mat-icon { font-size:18px; width:18px; height:18px; }
   }
-  .kpi-product { border-left-color: #1a237e; .kpi-num { color: #1a237e; } }
-  .kpi-license { border-left-color: #b71c1c; .kpi-num { color: #b71c1c; } }
-  .kpi-vendor  { border-left-color: #2e7d32; .kpi-num { color: #2e7d32; } }
+  .kpi-product  { border-left-color: #1a237e; .kpi-num { color: #1a237e; } }
+  .kpi-warranty { border-left-color: #ed6c02; .kpi-num { color: #ed6c02; } }
+  .kpi-license  { border-left-color: #b71c1c; .kpi-num { color: #b71c1c; } }
+  .kpi-vendor   { border-left-color: #2e7d32; .kpi-num { color: #2e7d32; } }
 }
 
 /* ===== Tabs ===== */
@@ -202,8 +203,9 @@
   padding: 2px 8px;
   border-radius: 10px;
   font-weight: 500;
-  &.product { background: rgba(26,35,126,.10); color: #1a237e; }
-  &.license { background: rgba(183,28,28,.10); color: #b71c1c; }
+  &.product  { background: rgba(26,35,126,.10);  color: #1a237e; }
+  &.warranty { background: rgba(237,108,2,.12);  color: #b85700; }
+  &.license  { background: rgba(183,28,28,.10);  color: #b71c1c; }
 }
 
 .family-group {

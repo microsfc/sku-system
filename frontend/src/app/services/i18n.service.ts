@@ -19,6 +19,7 @@ const DICT: Record<string, { zh: string; en: string }> = {
   total:           { zh: '料號總數',                en: 'Total' },
   product:         { zh: '產品料號',                en: 'Product' },
   license:         { zh: '授權料號',                en: 'License' },
+  warranty:        { zh: '產品保固',                en: 'Warranty' },
   category:        { zh: '分類',                    en: 'Category' },
   sku:             { zh: '料號',                    en: 'SKU' },
   description:     { zh: '說明',                    en: 'Description' },
@@ -76,7 +77,11 @@ const DICT: Record<string, { zh: string; en: string }> = {
   clearSelection:  { zh: '清除選取',                en: 'Clear Selection' },
   selected:        { zh: '已選',                    en: 'selected' },
   batchDelete:     { zh: '批次刪除',                en: 'Batch Delete' },
-  confirmBatchDel: { zh: '將刪除選取的料號, 是否繼續?', en: 'Delete the selected items?' }
+  confirmBatchDel: { zh: '將刪除選取的料號, 是否繼續?', en: 'Delete the selected items?' },
+
+  // 重複 SKU 提示
+  duplicateSku:    { zh: '此廠商已有相同料號',          en: 'This vendor already has this SKU' },
+  editExisting:    { zh: '編輯既有料號',                en: 'Edit existing' }
 };
 
 @Injectable({ providedIn: 'root' })

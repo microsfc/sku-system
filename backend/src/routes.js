@@ -38,8 +38,9 @@ router.get('/vendors', (_req, res) => {
   const list = db.prepare(`
     SELECT v.*,
       (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id) AS total,
-      (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id AND p.category='product') AS product_count,
-      (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id AND p.category='license') AS license_count
+      (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id AND p.category='product')  AS product_count,
+      (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id AND p.category='warranty') AS warranty_count,
+      (SELECT COUNT(*) FROM parts p WHERE p.vendor_id=v.id AND p.category='license')  AS license_count
     FROM vendors v
     ORDER BY v.id ASC
   `).all();
@@ -76,7 +77,7 @@ function buildPartsQuery(req) {
   const where = [];
   const args = [];
   if (vendor) { where.push('p.vendor_id=?'); args.push(vendor); }
-  if (category && (category === 'product' || category === 'license')) {
+  if (category && (category === 'product' || category === 'license' || category === 'warranty')) {
     where.push('p.category=?'); args.push(category);
   }
   if (q) {
@@ -114,6 +115,35 @@ router.post('/parts', (req, res) => {
     ? String(family).trim().toUpperCase()
     : extractFamily(cleanSku, description);
   const locked = family_locked ? 1 : 0;
+
+  // Pre-check: 同一廠商已有相同 SKU? → 回 409 + existing 資訊, 讓前端可導向編輯
+  if (cleanSku) {
+    const exist = db.prepare(`
+      SELECT p.id, p.sku, p.description, p.category, p.family, p.vendor_id,
+             v.code AS vendor_code, v.name AS vendor_name
+      FROM parts p
+      JOIN vendors v ON v.id = p.vendor_id
+      WHERE p.vendor_id = ? AND p.sku = ?
+      LIMIT 1
+    `).get(vendor_id, cleanSku);
+    if (exist) {
+      return res.status(409).json({
+        error: `此廠商 (${exist.vendor_code}) 已有相同料號 ${exist.sku}`,
+        code: 'DUPLICATE_SKU',
+        existing: {
+          id: exist.id,
+          sku: exist.sku,
+          description: exist.description,
+          category: exist.category,
+          family: exist.family,
+          vendor_id: exist.vendor_id,
+          vendor_code: exist.vendor_code,
+          vendor_name: exist.vendor_name
+        }
+      });
+    }
+  }
+
   try {
     const info = db.prepare(`
       INSERT INTO parts (vendor_id, sku, description, category, family, family_locked)
@@ -121,6 +151,10 @@ router.post('/parts', (req, res) => {
     `).run(vendor_id, cleanSku || null, description || '', cat, fam || null, locked);
     res.json({ id: Number(info.lastInsertRowid) });
   } catch (e) {
+    // race condition 之類的 fallback (理論上不會走到)
+    if (/UNIQUE/i.test(e.message)) {
+      return res.status(409).json({ error: '此廠商已有相同料號', code: 'DUPLICATE_SKU' });
+    }
     res.status(400).json({ error: e.message });
   }
 });
@@ -236,7 +270,8 @@ const existsNullSku = db.prepare(`
 function writePart(vendorId, p) {
   const sku  = (p.sku && String(p.sku).trim()) || null;
   const desc = p.description || '';
-  const cat  = (p.category === 'license' ? 'license' : 'product');
+  const cat  = (p.category === 'license' || p.category === 'warranty')
+    ? p.category : 'product';
   const src  = p.source_file || '';
   const fam  = extractFamily(sku, desc) || null;
   if (sku) {
@@ -257,8 +292,9 @@ router.post('/import/preview', upload.single('file'), (req, res) => {
     file: req.file.originalname,
     sheets: result.sheets,
     total: result.parts.length,
-    product: result.parts.filter(p => p.category === 'product').length,
-    license: result.parts.filter(p => p.category === 'license').length,
+    product:  result.parts.filter(p => p.category === 'product').length,
+    warranty: result.parts.filter(p => p.category === 'warranty').length,
+    license:  result.parts.filter(p => p.category === 'license').length,
     parts: result.parts
   };
   res.json(summary);
@@ -338,6 +374,7 @@ router.post('/import/preview-auto', upload.single('file'), (req, res) => {
         will_create: !existing && !!det,
         count: 0,
         product: 0,
+        warranty: 0,
         license: 0,
         parts: []
       });
@@ -345,15 +382,18 @@ router.post('/import/preview-auto', upload.single('file'), (req, res) => {
     const g = groups.get(code);
     g.parts.push(p);
     g.count++;
-    if (p.category === 'license') g.license++; else g.product++;
+    if (p.category === 'license') g.license++;
+    else if (p.category === 'warranty') g.warranty++;
+    else g.product++;
   }
 
   res.json({
     file: req.file.originalname,
     sheets: parsed.sheets,
     total: parsed.parts.length,
-    product: parsed.parts.filter(p => p.category === 'product').length,
-    license: parsed.parts.filter(p => p.category === 'license').length,
+    product:  parsed.parts.filter(p => p.category === 'product').length,
+    warranty: parsed.parts.filter(p => p.category === 'warranty').length,
+    license:  parsed.parts.filter(p => p.category === 'license').length,
     groups: [...groups.values()]
   });
 });
@@ -483,8 +523,9 @@ router.get('/families', (req, res) => {
   if (vendor) { where.push('vendor_id = ?'); args.push(vendor); }
   const sql = `
     SELECT family, COUNT(*) AS count,
-      SUM(CASE WHEN category='product' THEN 1 ELSE 0 END) AS product,
-      SUM(CASE WHEN category='license' THEN 1 ELSE 0 END) AS license
+      SUM(CASE WHEN category='product'  THEN 1 ELSE 0 END) AS product,
+      SUM(CASE WHEN category='warranty' THEN 1 ELSE 0 END) AS warranty,
+      SUM(CASE WHEN category='license'  THEN 1 ELSE 0 END) AS license
     FROM parts
     WHERE ${where.join(' AND ')}
     GROUP BY family
@@ -520,10 +561,10 @@ function uniqueSheetName(wb, base) {
 
 // 把同一廠商的 rows 寫成一個 sheet:
 //   - 先依 family 分組 (未分類擺最後)
-//   - 每個 family 區塊上方有「▶ FAMILY — N items」橫幅 (跨 7 欄合併)
-//   - 同 family 內: product 在前 / license 在後, 各自再依 SKU 排序
+//   - 每個 family 區塊上方有「▶ FAMILY — N items」橫幅 (跨 4 欄合併)
+//   - 同 family 內: product → warranty → license, 各自再依 SKU 排序
 //   - family 區塊間插入空白分隔列
-//   - 欄位順序: Family / SKU / Description / Category / Family Locked / Source / Updated
+//   - 欄位順序: Family / SKU / Description / Category   (Category 之後的欄位移除)
 function appendVendorSheet(wb, vendorCode, vendorName, rows) {
   // 1. 分組
   const groupMap = new Map();
@@ -540,10 +581,13 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
     return a[0].localeCompare(b[0]);
   });
 
-  // 3. 同一 group 內: product → license, 各自 SKU asc (空 SKU 最後)
+  // 3. 同一 group 內: product → warranty → license, 各自 SKU asc (空 SKU 最後)
+  const CAT_ORDER = { product: 0, warranty: 1, license: 2 };
   for (const [, items] of groups) {
     items.sort((a, b) => {
-      if (a.category !== b.category) return a.category === 'product' ? -1 : 1;
+      const oa = CAT_ORDER[a.category] ?? 3;
+      const ob = CAT_ORDER[b.category] ?? 3;
+      if (oa !== ob) return oa - ob;
       const sa = String(a.sku || '');
       const sb = String(b.sku || '');
       if (!sa && sb) return 1;
@@ -553,7 +597,7 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
   }
 
   // 4. 構建 AoA + merges
-  const NUM_COLS = 7;
+  const NUM_COLS = 4;
   const aoa = [];
   const merges = [];
 
@@ -563,7 +607,7 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
   // 4-2. 空白分隔
   aoa.push([]);
   // 4-3. 欄位標題 (列 2)
-  aoa.push(['Family', 'SKU', 'Description', 'Category', 'Family Locked', 'Source', 'Updated']);
+  aoa.push(['Family', 'SKU', 'Description', 'Category']);
 
   // 4-4. 每組: 空白列 + family banner + 資料列
   let firstGroup = true;
@@ -574,12 +618,13 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
     firstGroup = false;
 
     const famLabel = family || '(未分類)';
-    const productCount = items.filter((r) => r.category === 'product').length;
-    const licenseCount = items.length - productCount;
+    const productCount  = items.filter((r) => r.category === 'product').length;
+    const warrantyCount = items.filter((r) => r.category === 'warranty').length;
+    const licenseCount  = items.length - productCount - warrantyCount;
     const bannerRow = aoa.length;
     aoa.push([
       `▶ ${famLabel}   ·   ${items.length} items   ` +
-      `(P:${productCount} / L:${licenseCount})`
+      `(P:${productCount} / W:${warrantyCount} / L:${licenseCount})`
     ]);
     merges.push({ s: { r: bannerRow, c: 0 }, e: { r: bannerRow, c: NUM_COLS - 1 } });
 
@@ -588,10 +633,7 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
         family || '(未分類)',
         r.sku || '',
         r.description || '',
-        r.category || '',
-        r.family_locked ? 'Y' : '',
-        r.source_file || '',
-        r.updated_at || ''
+        r.category || ''
       ]);
     }
   }
@@ -601,7 +643,7 @@ function appendVendorSheet(wb, vendorCode, vendorName, rows) {
   // 凍結列 1-3 (廠商橫幅 + 空行 + 欄名)
   ws['!freeze'] = { xSplit: 0, ySplit: 3 };
   // 欄寬
-  const widths = [16, 28, 80, 10, 14, 28, 20];
+  const widths = [16, 28, 80, 12];
   ws['!cols'] = widths.map((w) => ({ wch: w }));
 
   const sheetName = uniqueSheetName(wb, vendorCode || vendorName || 'Sheet');
@@ -627,16 +669,17 @@ function buildVendorTabbedWorkbook(rows) {
 
   // Summary sheet 先建 (放最前面)
   const summaryAoa = [
-    ['Vendor', 'Vendor Name', 'Total', 'Product', 'License', 'Families'],
+    ['Vendor', 'Vendor Name', 'Total', 'Product', 'Warranty', 'License', 'Families'],
   ];
   for (const [code, g] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const product = g.rows.filter(r => r.category === 'product').length;
-    const license = g.rows.filter(r => r.category === 'license').length;
+    const product  = g.rows.filter(r => r.category === 'product').length;
+    const warranty = g.rows.filter(r => r.category === 'warranty').length;
+    const license  = g.rows.filter(r => r.category === 'license').length;
     const families = new Set(g.rows.map(r => r.family).filter(Boolean));
-    summaryAoa.push([code, g.name, g.rows.length, product, license, families.size]);
+    summaryAoa.push([code, g.name, g.rows.length, product, warranty, license, families.size]);
   }
   const summaryWs = XLSX.utils.aoa_to_sheet(summaryAoa);
-  summaryWs['!cols'] = [12, 28, 8, 10, 10, 10].map(w => ({ wch: w }));
+  summaryWs['!cols'] = [12, 28, 8, 10, 10, 10, 10].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
   // 每廠商一個 sheet
@@ -691,11 +734,12 @@ router.get('/export/filtered', (req, res) => {
 
 // ---- Stats --------------------------------------------------------------
 router.get('/stats', (_req, res) => {
-  const total   = db.prepare(`SELECT COUNT(*) AS c FROM parts`).get().c;
-  const product = db.prepare(`SELECT COUNT(*) AS c FROM parts WHERE category='product'`).get().c;
-  const license = db.prepare(`SELECT COUNT(*) AS c FROM parts WHERE category='license'`).get().c;
-  const vendors = db.prepare(`SELECT COUNT(*) AS c FROM vendors`).get().c;
-  res.json({ total, product, license, vendors });
+  const total    = db.prepare(`SELECT COUNT(*) AS c FROM parts`).get().c;
+  const product  = db.prepare(`SELECT COUNT(*) AS c FROM parts WHERE category='product'`).get().c;
+  const warranty = db.prepare(`SELECT COUNT(*) AS c FROM parts WHERE category='warranty'`).get().c;
+  const license  = db.prepare(`SELECT COUNT(*) AS c FROM parts WHERE category='license'`).get().c;
+  const vendors  = db.prepare(`SELECT COUNT(*) AS c FROM vendors`).get().c;
+  res.json({ total, product, warranty, license, vendors });
 });
 
 module.exports = router;
